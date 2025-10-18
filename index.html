@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Loan & Borrow Manager</title>
+
+  <!-- jsPDF + autoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    /* --- Cyberpunk Purple-Pink Theme (Matrix-night vibe) --- */
+    :root{
+      --bg-1: #050006;
+      --bg-2: #0b0012;
+      --panel: rgba(12,6,18,0.6);
+      --glass: rgba(255,255,255,0.03);
+      --accent-1: #ff3cac; /* pink */
+      --accent-2: #6be3ff; /* cyan */
+      --glow: 0 0 20px rgba(255,60,172,0.12), 0 0 40px rgba(107,227,255,0.06);
+      --radius: 14px;
+      font-family: Inter, Poppins, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+
+    html,body{height:100%;}
+    body{
+      margin:0; padding:28px; background: radial-gradient(1200px 600px at 10% 10%, rgba(107,227,255,0.03), transparent),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+      color:#eaf6ff; -webkit-font-smoothing:antialiased;
+      display:flex; align-items:flex-start; justify-content:center;
+    }
+
+    .app{
+      width:98%; max-width:1100px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:var(--radius); padding:22px; box-shadow: 0 8px 40px rgba(0,0,0,0.6), var(--glow);
+      border:1px solid rgba(255,255,255,0.03);
+      backdrop-filter: blur(8px) saturate(120%);
+    }
+
+    header{display:flex; gap:12px; align-items:center; justify-content:space-between;}
+    .brand{display:flex; align-items:center; gap:12px}
+    .logo{
+      width:56px; height:56px; border-radius:12px; background:linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      display:flex; align-items:center; justify-content:center; color:#050006; font-weight:800; font-size:20px;
+      box-shadow: 0 6px 24px rgba(255,60,172,0.12), 0 10px 40px rgba(107,227,255,0.06);
+    }
+    h1{margin:0; font-size:20px; letter-spacing:0.6px}
+    .subtitle{color:rgba(230,245,255,0.65); font-size:13px}
+
+    .controls{display:flex; gap:12px; align-items:center}
+
+    /* form */
+    .form{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap}
+    .field{background:whitesmoke; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.03); min-width:160px}
+    input[type=text], input[type=date], input[type=number]{
+      background:whitesmoke; border:none; outline:none; color:#050006; font-weight:600;
+      width:180px;
+    }
+
+    .btn{
+      padding:10px 14px; border-radius:10px; border:none; cursor:pointer; font-weight:700;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+    }
+    .btn--primary{ background: linear-gradient(90deg, var(--accent-1), #b57bff); color:#050006; }
+    .btn--accent{ background: linear-gradient(90deg, #7afcff, #7a7bff); color:#050006; }
+    .btn--ghost{ background:transparent; border:1px solid rgba(255,255,255,0.04); color:rgba(230,245,255,0.9);} 
+
+    .grid{
+      display:grid; grid-template-columns: 1fr 420px; gap:18px; margin-top:18px;
+    }
+
+    /* list panel */
+    .panel{ background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.015)); padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.03); }
+    .panel h3{ margin:0 0 8px 0; }
+
+    table{ width:100%; border-collapse:collapse; font-size:13px }
+    th, td{ padding:10px 8px; text-align:left; border-bottom:1px dashed rgba(255,255,255,0.03) }
+    thead th{ color:rgba(255,255,255,0.9); font-weight:700; }
+
+    .row-customer{ display:flex; align-items:center; gap:10px }
+    .avatar{ width:36px; height:36px; border-radius:8px; background:linear-gradient(45deg, rgba(255,60,172,0.18), rgba(107,227,255,0.12)); display:flex; align-items:center; justify-content:center; font-weight:700; }
+
+    .actions{ display:flex; gap:6px; justify-content:flex-end }
+    .pill{ padding:6px 8px; border-radius:8px; font-weight:700; font-size:12px }
+    .pill--amount{ background: linear-gradient(90deg, rgba(255,60,172,0.08), rgba(107,227,255,0.04)); color:var(--accent-2); }
+
+    /* edit drawer */
+    .drawer{ position:fixed; right:18px; top:60px; width:360px; max-width:92%; background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01)); border-radius:12px; padding:18px; box-shadow:0 18px 60px rgba(0,0,0,0.6); transform:translateX(120%); transition:transform .28s cubic-bezier(.2,.9,.2,1); z-index:60; }
+    .drawer.open{ transform:translateX(0%);} 
+    .drawer h4{ margin:0 0 10px 0 }
+
+    .muted{ color:rgba(230,245,255,0.6); font-size:13px }
+
+    /* footer summary */
+    .summary{ display:flex; flex-direction:column; gap:10px; margin-top:12px }
+    .summary .line{ display:flex; justify-content:space-between; align-items:center; }
+    .big{ font-size:20px; font-weight:900; color:var(--accent-1); text-shadow:0 0 12px rgba(255,60,172,0.12)}
+
+    /* small screens */
+    @media(max-width:900px){ .grid{ grid-template-columns: 1fr; } }
+
+    /* animations */
+    .btn{ transition: transform .15s ease, box-shadow .15s ease; }
+    .btn:active{ transform:translateY(1px); }
+    tr:hover td{ background: linear-gradient(90deg, rgba(255,60,172,0.02), rgba(107,227,255,0.02)); }
+
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">CL</div>
+        <div>
+          <h1>Loan & Borrow Manager</h1>
+          <div class="subtitle">Offline · LocalStorage · PDF export</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <input id="search" class="field" type="text" placeholder="Search customer..." oninput="onSearch()" />
+        <button class="btn btn--accent" onclick="exportPDF()">Export PDF</button>
+        <button class="btn btn--ghost" onclick="clearAll()">Clear All</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="panel">
+        <h3>Add / Quick Entry</h3>
+        <div class="form">
+          <div class="field"><input id="name" type="text" placeholder="Customer name" /></div>
+          <div class="field"><input id="date" type="date" /></div>
+          <div class="field"><input id="product" type="text" placeholder="Product / Note" /></div>
+          <div class="field"><input id="amount" type="number" placeholder="Amount (₹)" /></div>
+          <div style="display:flex; align-items:center; gap:8px">
+            <button class="btn btn--primary" onclick="addEntry()">Add</button>
+            <button class="btn btn--ghost" onclick="fillToday()">Today</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <h3>Records</h3>
+          <div class="muted">Showing <span id="count">0</span> entries (keeps only last 30 days)</div>
+
+          <table id="table">
+            <thead>
+              <tr><th>Customer</th><th>Date</th><th>Product</th><th>Amount</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+
+        </div>
+      </section>
+
+      <aside class="panel">
+        <h3>Summary</h3>
+        <div class="summary">
+          <div class="line"><div class="muted">Selected Customer</div><div id="selectedCustomer" class="muted">All</div></div>
+          <div class="line"><div class="muted">Entries</div><div id="entryCount">0</div></div>
+          <div class="line"><div class="muted">Total Amount</div><div id="total" class="big">₹0</div></div>
+
+          <div style="margin-top:6px; display:flex; gap:8px">
+            <button class="btn btn--accent" onclick="paySelected()">Mark as Paid</button>
+            <button class="btn btn--ghost" onclick="downloadCSV()">Export CSV</button>
+          </div>
+
+          <div style="margin-top:12px">
+            <h4>Notes</h4>
+            <div class="muted">This app stores data in your browser and auto-removes items older than 30 days. Works offline.</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- edit drawer -->
+    <div id="drawer" class="drawer">
+      <h4>Edit Entry</h4>
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <input id="e_name" type="text" placeholder="Customer name" />
+        <input id="e_date" type="date" />
+        <input id="e_product" type="text" placeholder="Product / Note" />
+        <input id="e_amount" type="number" placeholder="Amount" />
+        <div style="display:flex; gap:8px; justify-content:flex-end">
+          <button class="btn btn--ghost" onclick="closeDrawer()">Cancel</button>
+          <button class="btn btn--primary" onclick="saveEdit()">Save</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- storage key and expiry ---
+    const STORAGE_KEY = 'cyberloan_records_v1';
+    const MS_30_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+    let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    // remove expired
+    records = records.filter(r => (Date.now() - (r._ts || r.timestamp || 0)) < MS_30_DAYS);
+    persist();
+
+    let editingId = null;
+
+    // DOM refs
+    const tbody = document.querySelector('#table tbody');
+    const countEl = document.getElementById('count');
+    const totalEl = document.getElementById('total');
+    const entryCountEl = document.getElementById('entryCount');
+    const selectedCustomerEl = document.getElementById('selectedCustomer');
+
+    function persist(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function uid(){ return Date.now() + Math.floor(Math.random()*999); }
+
+    function addEntry(){
+      const name = document.getElementById('name').value.trim();
+      const date = document.getElementById('date').value;
+      const product = document.getElementById('product').value.trim();
+      const amount = parseFloat(document.getElementById('amount').value);
+
+      if(!name || !date || !product || !amount){ alert('Fill all fields'); return; }
+
+      const rec = { id: uid(), customer:name, date, product, amount, timestamp: Date.now(), _ts: Date.now() };
+      records.push(rec);
+      persist(); render(); clearForm();
+    }
+
+    function clearForm(){ ['name','date','product','amount'].forEach(id=>document.getElementById(id).value=''); }
+    function fillToday(){ document.getElementById('date').value = new Date().toISOString().slice(0,10); }
+
+    function render(filtered){
+      // always purge expired on render
+      records = records.filter(r => (Date.now() - (r._ts || r.timestamp || 0)) < MS_30_DAYS);
+      persist();
+
+      const data = filtered || records.slice().sort((a,b)=>b.id-a.id);
+      tbody.innerHTML='';
+      data.forEach(r=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <div class="row-customer">
+              <div class="avatar">${r.customer.split(' ').map(s=>s[0]||'').slice(0,2).join('').toUpperCase()}</div>
+              <div>
+                <div style="font-weight:800">${escapeHtml(r.customer)}</div>
+                <div class="muted" style="font-size:12px">${escapeHtml(r.product)}</div>
+              </div>
+            </div>
+          </td>
+          <td>${r.date}</td>
+          <td>${r.product}</td>
+          <td><div class="pill pill--amount">₹${Number(r.amount).toFixed(2)}</div></td>
+          <td class="actions">
+            <button class="btn btn--ghost" onclick="openEdit(${r.id})">Edit</button>
+            <button class="btn btn--ghost" onclick="remove(${r.id})">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      countEl.textContent = data.length;
+
+      // summary (based on current search)
+      const total = data.reduce((s,i)=>s+Number(i.amount),0);
+      totalEl.textContent = `₹${total.toFixed(2)}`;
+      entryCountEl.textContent = data.length;
+      selectedCustomerEl.textContent = (document.getElementById('search').value.trim() || 'All');
+    }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; }); }
+
+    function onSearch(){ const q = document.getElementById('search').value.trim().toLowerCase(); if(!q){ render(); return; } const f = records.filter(r=> r.customer.toLowerCase().includes(q)); render(f); }
+
+    function remove(id){ if(!confirm('Delete this record?')) return; records = records.filter(r=>r.id!==id); persist(); onSearch(); }
+
+    function openEdit(id){ editingId = id; const r = records.find(x=>x.id===id); if(!r) return; document.getElementById('e_name').value = r.customer; document.getElementById('e_date').value = r.date; document.getElementById('e_product').value = r.product; document.getElementById('e_amount').value = r.amount; document.getElementById('drawer').classList.add('open'); }
+    function closeDrawer(){ editingId = null; document.getElementById('drawer').classList.remove('open'); }
+
+    function saveEdit(){ if(!editingId) return; const r = records.find(x=>x.id===editingId); if(!r) return; const name = document.getElementById('e_name').value.trim(); const date = document.getElementById('e_date').value; const product = document.getElementById('e_product').value.trim(); const amount = parseFloat(document.getElementById('e_amount').value);
+      if(!name||!date||!product||!amount){ alert('Fill all fields'); return; }
+      r.customer = name; r.date = date; r.product = product; r.amount = amount; r._ts = Date.now(); persist(); closeDrawer(); onSearch(); }
+
+    // mark selected customer paid -> remove those entries
+    function paySelected(){ const q = document.getElementById('search').value.trim().toLowerCase(); if(!q){ alert('Search a customer to mark as paid'); return; } if(!confirm('Mark ALL visible entries for this customer as paid (they will be removed locally)?')) return; records = records.filter(r=> !r.customer.toLowerCase().includes(q)); persist(); onSearch(); }
+
+    // export to PDF using autoTable
+    async function exportPDF(){ const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit:'pt', format:'a4' });
+      const q = document.getElementById('search').value.trim().toLowerCase(); const data = (q? records.filter(r=>r.customer.toLowerCase().includes(q)) : records.slice()).sort((a,b)=> (a.date < b.date? -1:1));
+      if(data.length===0){ alert('No records to export'); return; }
+
+      doc.setFontSize(18); doc.text('CyberLoan — Loan/Borrow Summary', 40, 50);
+      doc.setFontSize(11); doc.text(`Customer: ${q? document.getElementById('search').value.trim() : 'All'}`, 40, 70);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 86);
+
+      const rows = data.map(r=> [r.customer, r.date, r.product, '₹' + Number(r.amount).toFixed(2)]);
+      doc.autoTable({ head:[['Customer','Date','Product','Amount']], body: rows, startY: 110, styles:{fontSize:10}, theme:'striped', headStyles:{fillColor:[46,12,44], textColor:255} });
+
+      const total = data.reduce((s,i)=>s+Number(i.amount),0);
+      doc.setFontSize(12); doc.text(`Total: ₹${total.toFixed(2)}`, 420, doc.lastAutoTable.finalY + 20);
+      const filename = (q? document.getElementById('search').value.trim()+'_summary' : 'all_records') + '.pdf';
+      doc.save(filename);
+    }
+
+    // csv export
+    function downloadCSV(){ const q = document.getElementById('search').value.trim().toLowerCase(); const data = (q? records.filter(r=>r.customer.toLowerCase().includes(q)) : records.slice()); if(data.length===0){ alert('No data'); return; }
+      const rows = [['Customer','Date','Product','Amount']].concat(data.map(r=>[r.customer,r.date,r.product,Number(r.amount).toFixed(2)]));
+      const csv = rows.map(r=> r.map(c=> '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+      const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'export.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    function clearAll(){ if(!confirm('Clear ALL records in local storage?')) return; records=[]; persist(); render(); }
+
+    // helper: download CSV for the entire DB automatically
+    function autoLoadDemo(){ if(localStorage.getItem(STORAGE_KEY)) return; // don't overwrite
+      // seed with small realistic demo data for visualization
+      const now = new Date(); const seed = [
+        { id:uid(), customer:'Asha Kumar', date: isoDays(-2), product:'Phone repair', amount:1200, timestamp:Date.now()-2*86400000, _ts:Date.now()-2*86400000 },
+        { id:uid(), customer:'Ramesh', date: isoDays(-5), product:'Groceries credit', amount:800, timestamp:Date.now()-5*86400000, _ts:Date.now()-5*86400000 },
+        { id:uid(), customer:'Asha Kumar', date: isoDays(-10), product:'Lent money', amount:5000, timestamp:Date.now()-10*86400000, _ts:Date.now()-10*86400000 },
+        { id:uid(), customer:'Maya', date: isoDays(-1), product:'Cooker parts', amount:450, timestamp:Date.now()-1*86400000, _ts:Date.now()-1*86400000 }
+      ]; records = seed.concat(records); persist(); }
+
+    function isoDays(offset){ const d = new Date(); d.setDate(d.getDate()+offset); return d.toISOString().slice(0,10); }
+
+    // small utility to mark inputs numeric pattern
+    document.getElementById('amount').addEventListener('keypress', function(e){ if(e.key==='-'||e.key==='+' ) e.preventDefault(); });
+
+    // initial
+    autoLoadDemo(); render();
+
+    // drawer controls
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeDrawer(); } });
+
+  </script>
+</body>
+</html>
