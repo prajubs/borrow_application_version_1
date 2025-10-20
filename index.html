@@ -291,7 +291,7 @@
       const q = document.getElementById('search').value.trim().toLowerCase(); const data = (q? records.filter(r=>r.customer.toLowerCase().includes(q)) : records.slice()).sort((a,b)=> (a.date < b.date? -1:1));
       if(data.length===0){ alert('No records to export'); return; }
 
-      doc.setFontSize(18); doc.text('CyberLoan — Loan/Borrow Summary', 40, 50);
+      doc.setFontSize(18); doc.text('Borrow sheet by prajwal', 40, 50);
       doc.setFontSize(11); doc.text(`Customer: ${q? document.getElementById('search').value.trim() : 'All'}`, 40, 70);
       doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 86);
 
